@@ -1,0 +1,17 @@
+{
+  "name": "salawat-bot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "WhatsApp group bot that tracks a running salawat count and posts AI-generated updates.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "dotenv": "^17.4.2",
+    "pino": "^9.5.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
