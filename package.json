@@ -5,13 +5,28 @@
   "description": "WhatsApp group bot that tracks a running salawat count and posts AI-generated updates.",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d",
+    "db:logs": "docker compose logs -f postgres",
+    "postinstall": "prisma generate",
+    "db:studio": "prisma studio",
+    "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
+    "@prisma/adapter-pg": "^7.10.0",
+    "@prisma/client": "^7.10.0",
     "@whiskeysockets/baileys": "^6.7.9",
-    "dotenv": "^17.4.2",
     "pino": "^9.5.0",
     "qrcode-terminal": "^0.12.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.4.2",
+    "prisma": "^7.10.0"
   }
 }

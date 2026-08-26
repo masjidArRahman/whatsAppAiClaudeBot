@@ -1,0 +1,23 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          Int          @id @default(autoincrement())
+  phoneNumber String       @unique
+  name        String?
+  createdAt   DateTime     @default(now())
+  submissions Submission[]
+}
+
+model Submission {
+  id          Int      @id @default(autoincrement())
+  count       Int      @default(0)
+  submittedAt DateTime @default(now())
+  author      User     @relation(fields: [authorId], references: [id])
+  authorId    Int
+}
