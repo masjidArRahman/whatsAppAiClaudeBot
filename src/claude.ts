@@ -11,12 +11,12 @@ const QUICK_REGEX = /(\d{1,6})\s*(x\s*)?(salawat|solawat|salavat)?/i;
  * Try to extract a salawat count from a free-form WhatsApp message.
  * Returns a positive integer, or null if the message isn't a submission.
  */
-export async function extractSalawatCount(text) {
+export async function extractSalawatCount(text: string): Promise<number | null> {
   if (!text || text.trim().length === 0) return null;
 
   // Fast path: simple "+50" or "50 salawat" style messages, no API call needed.
   const simpleMatch = text.trim().match(/^\+?(\d{1,6})$/);
-  if (simpleMatch) return parseInt(simpleMatch[1], 10);
+  if (simpleMatch?.[1]) return parseInt(simpleMatch[1], 10);
 
   // Skip an API call entirely if there's no digit anywhere in the message.
   if (!/\d/.test(text)) return null;
@@ -40,7 +40,7 @@ Rules:
     const count = parsed.count;
     return Number.isInteger(count) && count > 0 ? count : null;
   } catch (err) {
-    console.error('extractSalawatCount error:', err.message);
+    console.error('extractSalawatCount error:', err instanceof Error ? err.message : err);
     // Fallback to the quick regex if the API call fails
     const fallback = text.match(QUICK_REGEX);
     if (fallback && fallback[1]) return parseInt(fallback[1], 10);
@@ -57,15 +57,24 @@ const LANGUAGES = [
   { code: 'bn', flag: '🇧🇩', name: 'Bengali' },
 ];
 
-function formatMultilingual(byLangCode) {
-  return LANGUAGES.map(({ code, flag }) => `${flag} ${byLangCode[code]}`).join('\n\n');
+type MultilingualText = Record<'en' | 'ar' | 'ro' | 'ur' | 'bn', string>;
+
+function formatMultilingual(byLangCode: MultilingualText) {
+  return LANGUAGES.map(({ code, flag }) => `${flag} ${byLangCode[code as keyof MultilingualText]}`).join('\n\n');
 }
+
+type UpdateMessageParams = {
+  total: number;
+  goal: number;
+  submittedBy: string | null;
+  amount: number;
+};
 
 /**
  * Generate a short, warm group message announcing the updated total,
  * in English, Arabic, Romanian, Urdu, and Bengali.
  */
-export async function generateUpdateMessage({ total, goal, submittedBy, amount }) {
+export async function generateUpdateMessage({ total, goal, submittedBy, amount }: UpdateMessageParams) {
   try {
     const response = await anthropic.messages.create({
       model: MODEL,
@@ -92,7 +101,7 @@ Tone: encouraging, warm, respectful. You may use one relevant emoji per version.
     }
     throw new Error('Incomplete translation response');
   } catch (err) {
-    console.error('generateUpdateMessage error:', err.message);
+    console.error('generateUpdateMessage error:', err instanceof Error ? err.message : err);
     return formatMultilingual({
       en: `JazakAllah khair! Group total: ${total}/${goal} salawat.`,
       ar: `جزاكم الله خيرًا! إجمالي المجموعة: ${total}/${goal} صلاة.`,
@@ -106,7 +115,7 @@ Tone: encouraging, warm, respectful. You may use one relevant emoji per version.
 /**
  * Static multi-language announcement sent once the campaign goal is reached.
  */
-export function GOAL_REACHED_MESSAGE(goal) {
+export function GOAL_REACHED_MESSAGE(goal: number) {
   return formatMultilingual({
     en: `🎉 Alhamdulillah! We've reached our goal of ${goal} salawat as a group! JazakAllah khair to everyone who took part.`,
     ar: `🎉 الحمد لله! لقد وصلنا إلى هدفنا وهو ${goal} صلاة كمجموعة! جزاكم الله خيرًا لكل من شارك.`,

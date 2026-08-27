@@ -4,6 +4,12 @@ import path from 'path';
 const DATA_DIR = process.env.DATA_DIR || './data';
 const COUNT_FILE = path.join(DATA_DIR, 'count.json');
 
+type State = {
+  total: number;
+  submissions: number;
+  lastUpdated: string | null;
+};
+
 function ensureDataDir() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -20,12 +26,12 @@ export function loadState() {
   return JSON.parse(fs.readFileSync(COUNT_FILE, 'utf8'));
 }
 
-export function saveState(state) {
+export function saveState(state: State) {
   ensureDataDir();
   fs.writeFileSync(COUNT_FILE, JSON.stringify(state, null, 2));
 }
 
-export function addToTotal(amount) {
+export function addToTotal(amount: number) {
   const state = loadState();
   state.total += amount;
   state.submissions += 1;

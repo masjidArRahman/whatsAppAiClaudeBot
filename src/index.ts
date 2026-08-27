@@ -1,11 +1,12 @@
 import 'dotenv/config';
 import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys';
+import { Boom } from '@hapi/boom';
 import qrcode from 'qrcode-terminal';
 import pino from 'pino';
 import { extractSalawatCount, generateUpdateMessage, GOAL_REACHED_MESSAGE } from './claude.js';
 import { addToTotal, loadState } from './store.js';
 
-const DATA_DIR = process.env.DATA_DIR || './data';
+const DATA_DIR = process.env.DATA_DIR || '/data';
 const AUTH_DIR = `${DATA_DIR}/auth`;
 const GROUP_ID = process.env.GROUP_ID || null; // e.g. "1234567890-1234567890@g.us"
 const GOAL = parseInt(process.env.SALAWAT_GOAL || '100000', 10);
@@ -33,7 +34,8 @@ async function start() {
     }
 
     if (connection === 'close') {
-      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const error = lastDisconnect?.error;
+      const statusCode = error instanceof Boom ? error.output.statusCode : undefined;
       const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
       console.log('Connection closed.', statusCode, 'Reconnecting:', shouldReconnect);
       if (shouldReconnect) start();
@@ -50,7 +52,7 @@ async function start() {
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return;
     const msg = messages[0];
-    if (!msg.message || msg.key.fromMe) return;
+    if (!msg || !msg.message || msg.key.fromMe) return;
 
     const chatId = msg.key.remoteJid;
     const isGroup = chatId?.endsWith('@g.us');
@@ -60,7 +62,7 @@ async function start() {
       console.log(`Message seen in group ${chatId}`);
     }
 
-    if (!isGroup || (GROUP_ID && chatId !== GROUP_ID)) return;
+    if (!chatId || !isGroup || (GROUP_ID && chatId !== GROUP_ID)) return;
 
     const text =
       msg.message.conversation ||
