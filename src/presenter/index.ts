@@ -20,7 +20,7 @@ const LANGUAGES = [
 type MultilingualText = Record<(typeof LANGUAGES)[number]['code'], string>;
 
 function formatMultilingual(byLangCode: MultilingualText): string {
-  return LANGUAGES.map(({ code, flag }) => `${flag} ${byLangCode[code]}`).join('\n\n');
+  return LANGUAGES.map(({ code, flag }) => `${flag} ${byLangCode[code]}`).join('\n');
 }
 
 // Example of the exact structure Claude must follow for /stats. Not real data -
