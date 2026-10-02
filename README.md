@@ -33,6 +33,13 @@ it from a prior submission, otherwise a generic greeting, plus the current
 total and goal), followed by a single `/help` message for the whole batch of
 joiners.
 
+When a submission brings the group total to (or past) the goal, the bot
+follows its usual reply with a one-off congratulations message to the whole
+group (in all five languages, with the final total and how many people took
+part). It fires exactly once per goal: the celebrated goal is recorded in the
+`Setting` row, so later submissions don't repeat it, and raising the goal with
+`/update-goal` re-arms it for the new target.
+
 ## Weekly digest
 
 Once a week, every subscribed user who logged at least one salawat in the

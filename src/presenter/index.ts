@@ -7,6 +7,7 @@ import type {
   SalawatResponse,
   StatsResponse,
   DispatchResponse,
+  GoalReachedResponse,
   UpdateGoalResponse,
   WelcomeResponse,
   WeeklyDigestResponse,
@@ -110,6 +111,8 @@ class Presenter implements PresenterInterface {
         return this.presentUnsubscribe();
       case ResponseType.WEEKLY_DIGEST:
         return this.presentWeeklyDigest(response);
+      case ResponseType.GOAL_REACHED:
+        return this.presentGoalReached(response);
     }
   }
 
@@ -310,6 +313,28 @@ Rules:
       `المجموع: ${total}`,
       '',
       'هذه رسالتك الأسبوعية التلقائية. أرسل /unsubscribe في أي وقت لإيقافها، أو /subscribe للاشتراك مرة أخرى.',
+    ].join('\n');
+  }
+
+  // Hardcoded like presentWelcome: a once-per-goal milestone carrying exact
+  // numbers, so it shouldn't risk an LLM rounding or paraphrasing them. Uses
+  // all five LANGUAGES (like the salawat acknowledgement it follows) since
+  // it's addressed to the whole group.
+  private presentGoalReached({ total, goal, participants }: GoalReachedResponse): string {
+    const totalStr = total.toLocaleString('en-US');
+    const goalStr = goal.toLocaleString('en-US');
+
+    return [
+      '🎉🌙 *Goal reached!* 🌙🎉',
+      `${totalStr} / ${goalStr}`,
+      '',
+      formatMultilingual({
+        en: `Alhamdulillah! Together we've reached our goal of ${goalStr} salawat, with ${participants} of you taking part. JazakumAllahu khairan to everyone - may Allah accept it from all of us 🤲`,
+        ar: `الحمد لله! بلغنا معًا هدفنا البالغ ${goalStr} صلاة بمشاركة ${participants} منكم. جزاكم الله خيرًا جميعًا، وتقبل الله منا ومنكم 🤲`,
+        ro: `Alhamdulillah! Împreună am atins obiectivul de ${goalStr} salawat, cu ${participants} participanți. Jazakumullahu khairan tuturor - Allah să primească de la noi toți 🤲`,
+        ur: `الحمدللہ! ہم سب نے مل کر ${goalStr} درود کا ہدف پورا کر لیا، ${participants} افراد کی شرکت سے۔ جزاکم اللہ خیراً سب کو - اللہ ہم سب سے قبول فرمائے 🤲`,
+        bn: `আলহামদুলিল্লাহ! আমরা সবাই মিলে ${goalStr} দরুদের লক্ষ্যে পৌঁছেছি, ${participants} জনের অংশগ্রহণে। সবাইকে জাযাকুমুল্লাহু খইরান - আল্লাহ আমাদের সবার পক্ষ থেকে কবুল করুন 🤲`,
+      }),
     ].join('\n');
   }
 

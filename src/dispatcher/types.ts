@@ -23,6 +23,11 @@ export type SalawatResponse = {
   /** Group-wide running total, summed from all submissions in the DB. */
   total: number;
   goal: number;
+  /**
+   * True only for the single submission that first brought the total to (or past) the current goal - the
+   * signal for src/index.ts to follow up with a group-wide GoalReachedResponse. False on every other submission.
+   */
+  goalReached: boolean;
 };
 
 /** The sender's own submission history. */
@@ -89,6 +94,15 @@ export type WelcomeResponse = {
   goal: number;
 };
 
+/** Group-wide congratulations once the shared goal is reached. Not triggered by a Command - follows a goal-reaching submission. */
+export type GoalReachedResponse = {
+  type: typeof ResponseType.GOAL_REACHED;
+  total: number;
+  goal: number;
+  /** How many distinct people have submitted at least once. */
+  participants: number;
+};
+
 /** Uniform response shape the Presenter switches on to pick a message format. */
 export type DispatchResponse =
   | SalawatResponse
@@ -100,7 +114,8 @@ export type DispatchResponse =
   | WelcomeResponse
   | SubscribeResponse
   | UnsubscribeResponse
-  | WeeklyDigestResponse;
+  | WeeklyDigestResponse
+  | GoalReachedResponse;
 
 /**
  * Public contract for the Dispatcher module.
@@ -119,6 +134,9 @@ export interface DispatcherInterface {
    * the internal weekly-digest endpoint.
    */
   buildWeeklyDigests(): Promise<WeeklyDigestResponse[]>;
+
+  /** Build the group-wide congratulations message for a goal that was just reached (see SalawatResponse.goalReached). */
+  buildGoalReached(total: number, goal: number): Promise<GoalReachedResponse>;
 
   /** Marks a user as having just been sent their weekly digest, so a re-trigger within 7 days skips them. */
   markWeeklyDigestSent(userId: number): Promise<void>;

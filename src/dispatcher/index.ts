@@ -2,7 +2,13 @@ import prisma from '../db.js';
 import { ResponseType } from '../constants.js';
 import type { Command } from '../interpreter/types.js';
 import type { MessageSender } from '../messenger/types.js';
-import type { DayCount, DispatcherInterface, DispatchResponse, WeeklyDigestResponse } from './types.js';
+import type {
+  DayCount,
+  DispatcherInterface,
+  DispatchResponse,
+  GoalReachedResponse,
+  WeeklyDigestResponse,
+} from './types.js';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const; // index = Date#getDay()
 const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const; // Monday-first display order
@@ -93,14 +99,44 @@ class Dispatcher implements DispatcherInterface {
     });
 
     const { _sum } = await prisma.submission.aggregate({ _sum: { count: true } });
+    const total = _sum.count ?? count;
+    const goal = await getGoal();
 
     return {
       type: ResponseType.SALAWAT,
       user: { id: user.id, name: user.name, phoneNumber: user.phoneNumber },
       count,
-      total: _sum.count ?? count,
-      goal: await getGoal(),
+      total,
+      goal,
+      goalReached: total >= goal && (await this.claimGoalCelebration(goal)),
     };
+  }
+
+  /**
+   * Atomically marks `goal` as celebrated, returning true only for the one
+   * caller that actually flipped it - so two submissions landing at the same
+   * moment can't both trigger a congratulations message. Keyed on the goal
+   * value rather than a plain flag, so raising the goal via /update-goal
+   * re-arms the celebration for the new target.
+   */
+  private async claimGoalCelebration(goal: number): Promise<boolean> {
+    // The settings row may not exist yet if /update-goal was never used.
+    await prisma.setting.upsert({
+      where: { id: SETTINGS_ID },
+      update: {},
+      create: { id: SETTINGS_ID, goal },
+    });
+    const { count } = await prisma.setting.updateMany({
+      // `not` alone doesn't match NULL in SQL, hence the explicit OR.
+      where: { id: SETTINGS_ID, OR: [{ celebratedGoal: null }, { celebratedGoal: { not: goal } }] },
+      data: { celebratedGoal: goal },
+    });
+    return count > 0;
+  }
+
+  async buildGoalReached(total: number, goal: number): Promise<GoalReachedResponse> {
+    const participants = await prisma.user.count({ where: { submissions: { some: {} } } });
+    return { type: ResponseType.GOAL_REACHED, total, goal, participants };
   }
 
   private async handleMe(sender: MessageSender): Promise<DispatchResponse> {

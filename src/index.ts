@@ -32,10 +32,18 @@ async function start() {
     // instead of posting it in the group.
     const target = response.type === ResponseType.ME ? sender.id : chatId;
 
-    messenger.sendMessage({
+    await messenger.sendMessage({
       text: reply,
       chatId: target
     })
+
+    // The submission that first reaches the goal also triggers a one-off
+    // congratulations message to the whole group, right after its own reply.
+    if (response.type === ResponseType.SALAWAT && response.goalReached) {
+      await sleep(SEND_DELAY_MS);
+      const celebration = await dispatcher.buildGoalReached(response.total, response.goal);
+      await messenger.sendMessage({ text: await presenter.processResponse(celebration), chatId });
+    }
   })
 
   // Greet each new member with a personal welcome (name + current progress),
