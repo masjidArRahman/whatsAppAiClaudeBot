@@ -8,6 +8,7 @@ const { mockPrisma } = vi.hoisted(() => ({
       create: vi.fn(),
       findMany: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     submission: {
       create: vi.fn(),
@@ -17,6 +18,7 @@ const { mockPrisma } = vi.hoisted(() => ({
     setting: {
       findUnique: vi.fn(),
       upsert: vi.fn(),
+      updateMany: vi.fn(),
     },
   },
 }));
@@ -53,7 +55,9 @@ describe('salawat submissions', () => {
       count: 50,
       total: 150,
       goal: expect.any(Number),
+      goalReached: false,
     });
+    expect(mockPrisma.setting.updateMany).not.toHaveBeenCalled();
   });
 
   it('reuses an existing user instead of creating a new one', async () => {
@@ -386,5 +390,58 @@ describe('group join (welcome)', () => {
     if (response.type !== 'welcome') throw new Error('expected a welcome response');
 
     expect(response.total).toBe(0);
+  });
+});
+
+describe('goal reached', () => {
+  beforeEach(() => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 7, name: 'Amina', phoneNumber: '123', chatId: sender.id });
+    mockPrisma.setting.findUnique.mockResolvedValue({ id: 1, goal: 1000, celebratedGoal: null });
+  });
+
+  it('flags goalReached for the submission that reaches the goal, claiming it atomically for that goal value', async () => {
+    mockPrisma.submission.aggregate.mockResolvedValue({ _sum: { count: 1020 } });
+    mockPrisma.setting.updateMany.mockResolvedValue({ count: 1 });
+
+    const response = await dispatcher.processCommand({ type: 'salawat', count: 50 }, sender);
+
+    expect(response).toMatchObject({ type: 'salawat', total: 1020, goal: 1000, goalReached: true });
+    expect(mockPrisma.setting.upsert).toHaveBeenCalledWith({
+      where: { id: 1 },
+      update: {},
+      create: { id: 1, goal: 1000 },
+    });
+    expect(mockPrisma.setting.updateMany).toHaveBeenCalledWith({
+      where: { id: 1, OR: [{ celebratedGoal: null }, { celebratedGoal: { not: 1000 } }] },
+      data: { celebratedGoal: 1000 },
+    });
+  });
+
+  it('does not flag goalReached again once this goal has already been celebrated', async () => {
+    mockPrisma.submission.aggregate.mockResolvedValue({ _sum: { count: 1100 } });
+    mockPrisma.setting.updateMany.mockResolvedValue({ count: 0 });
+
+    const response = await dispatcher.processCommand({ type: 'salawat', count: 50 }, sender);
+
+    expect(response).toMatchObject({ type: 'salawat', goalReached: false });
+  });
+
+  it('does not try to claim the celebration while still below the goal', async () => {
+    mockPrisma.submission.aggregate.mockResolvedValue({ _sum: { count: 999 } });
+
+    const response = await dispatcher.processCommand({ type: 'salawat', count: 50 }, sender);
+
+    expect(response).toMatchObject({ type: 'salawat', goalReached: false });
+    expect(mockPrisma.setting.upsert).not.toHaveBeenCalled();
+    expect(mockPrisma.setting.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('builds the congratulations response with the number of distinct participants', async () => {
+    mockPrisma.user.count.mockResolvedValue(37);
+
+    const response = await dispatcher.buildGoalReached(1020, 1000);
+
+    expect(mockPrisma.user.count).toHaveBeenCalledWith({ where: { submissions: { some: {} } } });
+    expect(response).toEqual({ type: 'goal-reached', total: 1020, goal: 1000, participants: 37 });
   });
 });

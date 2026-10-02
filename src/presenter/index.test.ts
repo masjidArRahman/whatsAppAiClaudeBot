@@ -4,6 +4,7 @@ import type {
   DayCount,
   HelpResponse,
   MeResponse,
+  GoalReachedResponse,
   SalawatResponse,
   StatsResponse,
   UpdateGoalResponse,
@@ -48,6 +49,7 @@ describe('salawat acknowledgement', () => {
     count: 50,
     total: 150,
     goal: 100000,
+    goalReached: false,
   };
 
   it('includes the progress header and every language when Claude returns a full translation set', async () => {
@@ -353,5 +355,20 @@ describe('welcome (group join)', () => {
     expect(text).toContain('Welcome! 🌙');
     expect(text).toContain('أهلاً بك! 🌙');
     expect(text).not.toContain('null');
+  });
+});
+
+describe('goal reached (group congratulations)', () => {
+  const response: GoalReachedResponse = { type: 'goal-reached', total: 100050, goal: 100000, participants: 37 };
+
+  it('renders a hardcoded celebration in every language with the exact numbers, without calling the API', async () => {
+    const text = await presenter.processResponse(response);
+
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(text).toContain('Goal reached!');
+    expect(text).toContain('100,050 / 100,000');
+    for (const flag of ['🇬🇧', '🇸🇦', '🇷🇴', '🇵🇰', '🇧🇩']) expect(text).toContain(flag);
+    expect(text.match(/100,000/g)?.length).toBe(6); // header + one per language
+    expect(text.match(/37/g)?.length).toBe(5);
   });
 });

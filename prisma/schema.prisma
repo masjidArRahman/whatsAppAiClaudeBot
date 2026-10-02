@@ -35,4 +35,7 @@ model Submission {
 model Setting {
   id   Int @id @default(1)
   goal Int @default(100000)
+  /// The goal value the group was last congratulated for reaching. Compared against the current goal so the
+  /// celebration fires exactly once per goal - and again if /update-goal later raises it to a new target.
+  celebratedGoal Int?
 }

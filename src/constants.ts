@@ -14,6 +14,7 @@ export const ResponseType = {
   UNSUBSCRIBE: 'unsubscribe',
   WELCOME: 'welcome',
   WEEKLY_DIGEST: 'weekly-digest',
+  GOAL_REACHED: 'goal-reached',
 } as const;
 
 export type ResponseType = (typeof ResponseType)[keyof typeof ResponseType];
