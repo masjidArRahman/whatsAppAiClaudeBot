@@ -14,7 +14,11 @@ const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const; /
 const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const; // Monday-first display order
 const DEFAULT_GOAL = parseInt(process.env.SALAWAT_GOAL || '100000', 10);
 const SETTINGS_ID = 1; // singleton settings row
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000; // rolling window, not calendar-week
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS; // rolling window, not calendar-week
+// Shorter than a week so users DMed late in a slow run (DMs are spaced out)
+// aren't skipped by the next week's run.
+const DIGEST_RESEND_GUARD_MS = 6 * DAY_MS;
 
 function resolvePhoneNumber(sender: MessageSender): string {
   return sender.phoneNumber ?? sender.id.split('@')[0] ?? sender.id;
@@ -204,6 +208,7 @@ class Dispatcher implements DispatcherInterface {
 
   async buildWeeklyDigests(): Promise<WeeklyDigestResponse[]> {
     const sevenDaysAgo = new Date(Date.now() - WEEK_MS);
+    const sixDaysAgo = new Date(Date.now() - DIGEST_RESEND_GUARD_MS);
 
     const users = await prisma.user.findMany({
       where: {
@@ -211,7 +216,7 @@ class Dispatcher implements DispatcherInterface {
         // Without a real chatId there's no valid JID to DM - phoneNumber
         // alone isn't reliably reconstructible into one (see schema.prisma).
         chatId: { not: null },
-        OR: [{ lastDigestSentAt: null }, { lastDigestSentAt: { lt: sevenDaysAgo } }],
+        OR: [{ lastDigestSentAt: null }, { lastDigestSentAt: { lt: sixDaysAgo } }],
         submissions: { some: { submittedAt: { gte: sevenDaysAgo } } },
       },
       include: {
