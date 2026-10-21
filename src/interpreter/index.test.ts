@@ -101,6 +101,21 @@ describe('fast paths (no API call)', () => {
   });
 });
 
+describe('per-submission limit', () => {
+  it('accepts a bare count exactly at the limit', async () => {
+    await expect(interpreter.processMessage('10000')).resolves.toEqual({ type: 'salawat', count: 10000 });
+  });
+
+  it('ignores a bare count above the limit', async () => {
+    await expect(interpreter.processMessage('10001')).resolves.toBeNull();
+  });
+
+  it('ignores a Claude-extracted count above the limit', async () => {
+    respondWith({ intent: 'salawat', count: 50000 });
+    await expect(interpreter.processMessage('did 50000 salawat today')).resolves.toBeNull();
+  });
+});
+
 describe('Claude-classified intents', () => {
   it('classifies natural-language stats requests', async () => {
     respondWith({ intent: 'stats', count: null });

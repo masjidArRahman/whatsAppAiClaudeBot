@@ -4,6 +4,8 @@ import type { Command, InterpreterInterface } from './types.js';
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
+// A single submission above this is ignored entirely (no reply, nothing saved).
+const MAX_SALAWAT_PER_SUBMISSION = parseInt(process.env.MAX_SALAWAT_PER_SUBMISSION || '10000', 10);
 
 // Quick local check before calling the API at all, to save cost/latency
 // on messages that are obviously unrelated (e.g. "good morning everyone").
@@ -41,6 +43,12 @@ class Interpreter implements InterpreterInterface {
   }
 
   async processMessage(message: string): Promise<Command | null> {
+    const command = await this.classifyMessage(message);
+    if (command?.type === ResponseType.SALAWAT && command.count > MAX_SALAWAT_PER_SUBMISSION) return null;
+    return command;
+  }
+
+  private async classifyMessage(message: string): Promise<Command | null> {
     const text = message?.trim();
     if (!text) return null;
 

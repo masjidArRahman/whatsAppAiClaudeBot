@@ -102,7 +102,8 @@ every time you redeploy.
    ```bash
    railway variables --set "ANTHROPIC_API_KEY=sk-ant-..." \
                       --set "DATA_DIR=/data" \
-                      --set "SALAWAT_GOAL=100000"
+                      --set "SALAWAT_GOAL=100000" \
+                      --set "MAX_SALAWAT_PER_SUBMISSION=10000"
    ```
    Leave `GROUP_ID` unset for now.
 5. Deploy:
