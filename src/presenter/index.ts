@@ -19,6 +19,8 @@ const MODEL = process.env.CLAUDE_MODEL || 'claude-haiku-4-5-20251001';
 
 const BAR_WIDTH = 10; // fixed-width bar so every line is the same length - no wrapping on narrow screens
 const MAX_ME_ROWS = 20;
+const PROGRESS_BAR_WIDTH = 12; // fine-grained bar: 12 cells x 8 steps each, still one line on narrow screens
+const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']; // 0/8 .. 7/8 of a cell
 
 // Languages the bot replies in for salawat confirmations, in display order, each with a flag shown above its text.
 const LANGUAGES = [
@@ -82,6 +84,25 @@ function renderBar(count: number, max: number): string {
   return '█'.repeat(filled) + '░'.repeat(BAR_WIDTH - filled);
 }
 
+// Goal progress bar with eighth-of-a-cell precision, e.g. "██████▎░░░░░". Clamped to 0-100%.
+function renderProgressBar(total: number, goal: number): string {
+  const ratio = goal > 0 ? Math.min(Math.max(total / goal, 0), 1) : 0;
+  const eighths = Math.floor(ratio * PROGRESS_BAR_WIDTH * 8);
+  const full = Math.floor(eighths / 8);
+  const partial = PARTIAL_BLOCKS[eighths % 8]!;
+  return '█'.repeat(full) + partial + '░'.repeat(PROGRESS_BAR_WIDTH - full - (partial ? 1 : 0));
+}
+
+// Dot-separated thousands, e.g. 1.234.567.
+function formatThousands(n: number): string {
+  return n.toLocaleString('de-DE');
+}
+
+function formatProgress(total: number, goal: number): string {
+  const percent = goal > 0 ? Math.min(Math.floor((total / goal) * 100), 100) : 0;
+  return `${renderProgressBar(total, goal)}\n${percent}% • ${formatThousands(total)} / ${formatThousands(goal)}`;
+}
+
 function formatDateTime(date: Date): string {
   const day = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
   const time = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -116,8 +137,8 @@ class Presenter implements PresenterInterface {
     }
   }
 
-  private async presentSalawat({ user, count, total, goal }: SalawatResponse): Promise<string> {
-    const header = `${total}/${goal}`;
+  private async presentSalawat({ user, count, total, goal, goalContext }: SalawatResponse): Promise<string> {
+    const header = formatProgress(total, goal);
     const name = user.name;
 
     const fallback = () => {
@@ -142,13 +163,16 @@ Rules:
 - In Romanian, keep common Islamic terms transliterated as Muslims actually say them (e.g. "Jazak Allah khair", "Maşa'Allah", "Alhamdulillah", "Insha'Allah") rather than translating them into Romanian words.
 - Sound like a genuine person, not a hype poster - vary the tone and sentence structure across the five language versions and across calls so replies don't blur together.
 - At most one relevant emoji, and only where it actually fits - not every version needs one.
+- If a goal context is given, hint at it in a few of the five versions (not all, and not word-for-word every time) to motivate - e.g. that we're working toward it together - without stating exact numbers or percentages, and keep it within the word limit. Do not invent details beyond the context given.
 - No markdown formatting.`,
         messages: [
           {
             role: 'user',
-            content: name
-              ? `${name} just submitted ${count} salawat. Write the short acknowledgement, using their name naturally.`
-              : `Someone (name unknown) just submitted ${count} salawat. Write the short acknowledgement without inventing a name.`,
+            content:
+              (name
+                ? `${name} just submitted ${count} salawat. Write the short acknowledgement, using their name naturally.`
+                : `Someone (name unknown) just submitted ${count} salawat. Write the short acknowledgement without inventing a name.`) +
+              (goalContext ? `\nGoal context (what the group is counting toward): ${goalContext}` : ''),
           },
         ],
       });
@@ -273,8 +297,9 @@ Rules:
     ].join('\n');
   }
 
-  private presentUpdateGoal({ goal }: UpdateGoalResponse): string {
-    return `✅ Goal updated to ${goal.toLocaleString('en-US')} salawat.`;
+  private presentUpdateGoal({ goal, goalContext }: UpdateGoalResponse): string {
+    const base = `✅ Goal updated to ${goal.toLocaleString('en-US')} salawat`;
+    return goalContext ? `${base} — ${goalContext}.` : `${base}.`;
   }
 
   private presentSubscribe(): string {

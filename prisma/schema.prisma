@@ -38,4 +38,7 @@ model Setting {
   /// The goal value the group was last congratulated for reaching. Compared against the current goal so the
   /// celebration fires exactly once per goal - and again if /update-goal later raises it to a new target.
   celebratedGoal Int?
+  /// Free-text purpose/deadline of the current goal (e.g. "end of Ramadan"), set via /update-goal's second argument
+  /// and hinted at in the salawat encouragement messages. Null when none was given.
+  goalContext String?
 }

@@ -29,7 +29,7 @@ export type UnsubscribeCommand = { type: typeof ResponseType.UNSUBSCRIBE };
  * Sets the group's shared submission goal. Deliberately undocumented: not
  * listed in /help, not in the natural-language classifier, fast-path only.
  */
-export type UpdateGoalCommand = { type: typeof ResponseType.UPDATE_GOAL; goal: number };
+export type UpdateGoalCommand = { type: typeof ResponseType.UPDATE_GOAL; goal: number; goalContext: string | null };
 
 export type Command =
   | SalawatCommand

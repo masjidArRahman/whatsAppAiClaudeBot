@@ -9,6 +9,7 @@ const MAX_SALAWAT_PER_SUBMISSION = parseInt(process.env.MAX_SALAWAT_PER_SUBMISSI
 
 // Quick local check before calling the API at all, to save cost/latency
 // on messages that are obviously unrelated (e.g. "good morning everyone").
+const MAX_GOAL_CONTEXT_LENGTH = 100;
 const QUICK_REGEX = /(\d{1,6})\s*(x\s*)?(salawat|solawat|salavat)?/i;
 
 // Nothing in the message even hints at one of the three intents we care
@@ -63,10 +64,12 @@ class Interpreter implements InterpreterInterface {
 
     // Hidden command: intentionally not in QUICK_SKIP_REGEX or the classifier
     // prompt below, so it's undiscoverable via /help or natural language.
-    const updateGoalMatch = normalized.match(/^\/update-goal\s+(\d{1,9})$/);
+    // Optional second argument is free-text goal context (e.g. "end of Ramadan"), kept in its original casing.
+    const updateGoalMatch = text.match(/^\/update-goal\s+(\d{1,9})(?:\s+(.+))?$/is);
     if (updateGoalMatch?.[1]) {
       const goal = parseInt(updateGoalMatch[1], 10);
-      if (goal > 0) return { type: ResponseType.UPDATE_GOAL, goal };
+      const goalContext = updateGoalMatch[2]?.trim().replace(/^["“”']+|["“”']+$/g, '').trim().slice(0, MAX_GOAL_CONTEXT_LENGTH) || null;
+      if (goal > 0) return { type: ResponseType.UPDATE_GOAL, goal, goalContext };
     }
 
     const simpleMatch = text.match(/^\+?(\d{1,6})$/);

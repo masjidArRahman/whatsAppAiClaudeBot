@@ -24,10 +24,14 @@ function resolvePhoneNumber(sender: MessageSender): string {
   return sender.phoneNumber ?? sender.id.split('@')[0] ?? sender.id;
 }
 
-/** Reads the shared goal from the DB, falling back to SALAWAT_GOAL until /update-goal is ever used. */
-async function getGoal(): Promise<number> {
+/** Reads the shared goal and its context from the DB, falling back to SALAWAT_GOAL (no context) until /update-goal is ever used. */
+async function getGoalSetting(): Promise<{ goal: number; goalContext: string | null }> {
   const setting = await prisma.setting.findUnique({ where: { id: SETTINGS_ID } });
-  return setting?.goal ?? DEFAULT_GOAL;
+  return { goal: setting?.goal ?? DEFAULT_GOAL, goalContext: setting?.goalContext ?? null };
+}
+
+async function getGoal(): Promise<number> {
+  return (await getGoalSetting()).goal;
 }
 
 /** Group-wide running total, summed across every submission ever recorded. */
@@ -73,7 +77,7 @@ class Dispatcher implements DispatcherInterface {
       case ResponseType.AWLIA:
         return this.handleAwlia();
       case ResponseType.UPDATE_GOAL:
-        return this.handleUpdateGoal(command.goal);
+        return this.handleUpdateGoal(command.goal, command.goalContext);
       case ResponseType.SUBSCRIBE:
         return this.handleSubscribe(sender);
       case ResponseType.UNSUBSCRIBE:
@@ -104,7 +108,7 @@ class Dispatcher implements DispatcherInterface {
 
     const { _sum } = await prisma.submission.aggregate({ _sum: { count: true } });
     const total = _sum.count ?? count;
-    const goal = await getGoal();
+    const { goal, goalContext } = await getGoalSetting();
 
     return {
       type: ResponseType.SALAWAT,
@@ -112,6 +116,7 @@ class Dispatcher implements DispatcherInterface {
       count,
       total,
       goal,
+      goalContext,
       goalReached: total >= goal && (await this.claimGoalCelebration(goal)),
     };
   }
@@ -184,14 +189,15 @@ class Dispatcher implements DispatcherInterface {
     return { type: ResponseType.AWLIA, users: shuffle(users) };
   }
 
-  private async handleUpdateGoal(goal: number): Promise<DispatchResponse> {
+  private async handleUpdateGoal(goal: number, goalContext: string | null): Promise<DispatchResponse> {
+    // Omitting the context clears it: a new goal usually means a new purpose, so a stale one shouldn't linger.
     await prisma.setting.upsert({
       where: { id: SETTINGS_ID },
-      update: { goal },
-      create: { id: SETTINGS_ID, goal },
+      update: { goal, goalContext },
+      create: { id: SETTINGS_ID, goal, goalContext },
     });
 
-    return { type: ResponseType.UPDATE_GOAL, goal };
+    return { type: ResponseType.UPDATE_GOAL, goal, goalContext };
   }
 
   private async handleSubscribe(sender: MessageSender): Promise<DispatchResponse> {

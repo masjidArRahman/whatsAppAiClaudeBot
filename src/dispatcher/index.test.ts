@@ -55,6 +55,7 @@ describe('salawat submissions', () => {
       count: 50,
       total: 150,
       goal: expect.any(Number),
+      goalContext: null,
       goalReached: false,
     });
     expect(mockPrisma.setting.updateMany).not.toHaveBeenCalled();
@@ -235,14 +236,27 @@ describe('/awlia', () => {
 
 describe('/update-goal (hidden command)', () => {
   it('persists the new goal and confirms it', async () => {
-    const response = await dispatcher.processCommand({ type: 'update-goal', goal: 250000 }, sender);
+    const response = await dispatcher.processCommand(
+      { type: 'update-goal', goal: 250000, goalContext: 'end of Ramadan' },
+      sender,
+    );
 
     expect(mockPrisma.setting.upsert).toHaveBeenCalledWith({
       where: { id: 1 },
-      update: { goal: 250000 },
-      create: { id: 1, goal: 250000 },
+      update: { goal: 250000, goalContext: 'end of Ramadan' },
+      create: { id: 1, goal: 250000, goalContext: 'end of Ramadan' },
     });
-    expect(response).toEqual({ type: 'update-goal', goal: 250000 });
+    expect(response).toEqual({ type: 'update-goal', goal: 250000, goalContext: 'end of Ramadan' });
+  });
+
+  it('clears the stored context when none is given', async () => {
+    await dispatcher.processCommand({ type: 'update-goal', goal: 250000, goalContext: null }, sender);
+
+    expect(mockPrisma.setting.upsert).toHaveBeenCalledWith({
+      where: { id: 1 },
+      update: { goal: 250000, goalContext: null },
+      create: { id: 1, goal: 250000, goalContext: null },
+    });
   });
 });
 

@@ -23,6 +23,8 @@ export type SalawatResponse = {
   /** Group-wide running total, summed from all submissions in the DB. */
   total: number;
   goal: number;
+  /** Free-text purpose/deadline of the goal (e.g. "end of Ramadan"), or null when none was set. */
+  goalContext: string | null;
   /**
    * True only for the single submission that first brought the total to (or past) the current goal - the
    * signal for src/index.ts to follow up with a group-wide GoalReachedResponse. False on every other submission.
@@ -62,6 +64,7 @@ export type AwliaResponse = {
 export type UpdateGoalResponse = {
   type: typeof ResponseType.UPDATE_GOAL;
   goal: number;
+  goalContext: string | null;
 };
 
 /** Confirms the sender is opted in to the weekly salawat digest DM. */

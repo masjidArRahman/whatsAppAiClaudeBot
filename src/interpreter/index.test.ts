@@ -53,14 +53,32 @@ describe('fast paths (no API call)', () => {
     await expect(interpreter.processMessage('/update-goal 200000')).resolves.toEqual({
       type: 'update-goal',
       goal: 200000,
+      goalContext: null,
     });
     expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('captures the rest of /update-goal as goal context, preserving its casing', async () => {
+    await expect(interpreter.processMessage('/update-goal 200000 End of Ramadan')).resolves.toEqual({
+      type: 'update-goal',
+      goal: 200000,
+      goalContext: 'End of Ramadan',
+    });
+  });
+
+  it('strips surrounding quotes from the goal context', async () => {
+    await expect(interpreter.processMessage('/update-goal 200000 "end of Ramadan"')).resolves.toEqual({
+      type: 'update-goal',
+      goal: 200000,
+      goalContext: 'end of Ramadan',
+    });
   });
 
   it('is case-insensitive for /update-goal', async () => {
     await expect(interpreter.processMessage('/UPDATE-GOAL 500')).resolves.toEqual({
       type: 'update-goal',
       goal: 500,
+      goalContext: null,
     });
   });
 
