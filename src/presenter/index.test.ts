@@ -49,6 +49,7 @@ describe('salawat acknowledgement', () => {
     count: 50,
     total: 150,
     goal: 100000,
+    goalContext: null,
     goalReached: false,
   };
 
@@ -57,7 +58,7 @@ describe('salawat acknowledgement', () => {
 
     const text = await presenter.processResponse(response);
 
-    expect(text.startsWith('150/100000')).toBe(true);
+    expect(text.startsWith('░░░░░░░░░░░░\n0% • 150 / 100.000')).toBe(true);
     expect(text).toContain('🇬🇧 Great job!');
     expect(text).toContain('🇸🇦 أحسنت');
     expect(text).toContain('🇷🇴 Bravo');
@@ -83,7 +84,7 @@ describe('salawat acknowledgement', () => {
 
     try {
       const text = await presenter.processResponse(response);
-      expect(text).toContain('150/100000');
+      expect(text).toContain('0% • 150 / 100.000');
       expect(text).toContain('Amina, JazakAllah khair, keep going! 🌙');
     } finally {
       randomSpy.mockRestore();
@@ -102,6 +103,56 @@ describe('salawat acknowledgement', () => {
     } finally {
       randomSpy.mockRestore();
     }
+  });
+});
+
+describe('salawat goal context', () => {
+  const base: SalawatResponse = {
+    type: 'salawat',
+    user: { id: 1, name: null, phoneNumber: '123' },
+    count: 1,
+    total: 10,
+    goal: 100,
+    goalContext: null,
+    goalReached: false,
+  };
+
+  it('passes the goal context to Claude when set', async () => {
+    respondWithJson({ en: 'a', ar: 'b', ro: 'c', ur: 'd', bn: 'e' });
+    await presenter.processResponse({ ...base, goalContext: 'end of Ramadan' });
+
+    const call = mockCreate.mock.calls[0]![0];
+    expect(call.messages[0].content).toContain('end of Ramadan');
+  });
+
+  it('omits the goal context line when none is set', async () => {
+    respondWithJson({ en: 'a', ar: 'b', ro: 'c', ur: 'd', bn: 'e' });
+    await presenter.processResponse(base);
+
+    const call = mockCreate.mock.calls[0]![0];
+    expect(call.messages[0].content).not.toContain('Goal context');
+  });
+});
+
+describe('salawat progress bar', () => {
+  const base: SalawatResponse = {
+    type: 'salawat',
+    user: { id: 1, name: null, phoneNumber: '123' },
+    count: 1,
+    total: 0,
+    goal: 1000000,
+    goalContext: null,
+    goalReached: false,
+  };
+
+  it.each([
+    [620000, 1000000, '███████▍░░░░\n62% • 620.000 / 1.000.000'],
+    [0, 1000000, '░░░░░░░░░░░░\n0% • 0 / 1.000.000'],
+    [1200000, 1000000, '████████████\n100% • 1.200.000 / 1.000.000'],
+  ])('renders %i/%i', async (total, goal, expected) => {
+    mockCreate.mockRejectedValue(new Error('network error'));
+    const text = await presenter.processResponse({ ...base, total, goal });
+    expect(text.startsWith(expected)).toBe(true);
   });
 });
 
@@ -259,12 +310,18 @@ describe('/awlia', () => {
 
 describe('/update-goal (hidden command)', () => {
   it('confirms the new goal without calling the API', async () => {
-    const response: UpdateGoalResponse = { type: 'update-goal', goal: 250000 };
+    const response: UpdateGoalResponse = { type: 'update-goal', goal: 250000, goalContext: null };
 
     const text = await presenter.processResponse(response);
 
     expect(mockCreate).not.toHaveBeenCalled();
     expect(text).toContain('250,000');
+  });
+
+  it('echoes the goal context when one is set', async () => {
+    const text = await presenter.processResponse({ type: 'update-goal', goal: 250000, goalContext: 'end of Ramadan' });
+
+    expect(text).toContain('end of Ramadan');
   });
 });
 
