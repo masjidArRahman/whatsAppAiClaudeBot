@@ -58,7 +58,7 @@ describe('salawat acknowledgement', () => {
 
     const text = await presenter.processResponse(response);
 
-    expect(text.startsWith('░░░░░░░░░░░░\n0% • 150 / 100.000')).toBe(true);
+    expect(text.startsWith('▁▁▁▁▁▁▁▁▁▁▁▁\n0% • 150 / 100.000')).toBe(true);
     expect(text).toContain('🇬🇧 Great job!');
     expect(text).toContain('🇸🇦 أحسنت');
     expect(text).toContain('🇷🇴 Bravo');
@@ -146,8 +146,8 @@ describe('salawat progress bar', () => {
   };
 
   it.each([
-    [620000, 1000000, '███████▍░░░░\n62% • 620.000 / 1.000.000'],
-    [0, 1000000, '░░░░░░░░░░░░\n0% • 0 / 1.000.000'],
+    [620000, 1000000, '███████▍▁▁▁▁\n62% • 620.000 / 1.000.000'],
+    [0, 1000000, '▁▁▁▁▁▁▁▁▁▁▁▁\n0% • 0 / 1.000.000'],
     [1200000, 1000000, '████████████\n100% • 1.200.000 / 1.000.000'],
   ])('renders %i/%i', async (total, goal, expected) => {
     mockCreate.mockRejectedValue(new Error('network error'));

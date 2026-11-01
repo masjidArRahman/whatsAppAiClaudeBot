@@ -21,6 +21,9 @@ const BAR_WIDTH = 10; // fixed-width bar so every line is the same length - no w
 const MAX_ME_ROWS = 20;
 const PROGRESS_BAR_WIDTH = 12; // fine-grained bar: 12 cells x 8 steps each, still one line on narrow screens
 const PARTIAL_BLOCKS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉']; // 0/8 .. 7/8 of a cell
+// Remaining portion of the progress bar: a thin baseline "track" rather than '░', which WhatsApp's font renders
+// almost as solid as '█', leaving no visible contrast between done and remaining.
+const PROGRESS_BAR_EMPTY = '▁';
 
 // Languages the bot replies in for salawat confirmations, in display order, each with a flag shown above its text.
 const LANGUAGES = [
@@ -84,13 +87,13 @@ function renderBar(count: number, max: number): string {
   return '█'.repeat(filled) + '░'.repeat(BAR_WIDTH - filled);
 }
 
-// Goal progress bar with eighth-of-a-cell precision, e.g. "██████▎░░░░░". Clamped to 0-100%.
+// Goal progress bar with eighth-of-a-cell precision, e.g. "██████▎▁▁▁▁▁". Clamped to 0-100%.
 function renderProgressBar(total: number, goal: number): string {
   const ratio = goal > 0 ? Math.min(Math.max(total / goal, 0), 1) : 0;
   const eighths = Math.floor(ratio * PROGRESS_BAR_WIDTH * 8);
   const full = Math.floor(eighths / 8);
   const partial = PARTIAL_BLOCKS[eighths % 8]!;
-  return '█'.repeat(full) + partial + '░'.repeat(PROGRESS_BAR_WIDTH - full - (partial ? 1 : 0));
+  return '█'.repeat(full) + partial + PROGRESS_BAR_EMPTY.repeat(PROGRESS_BAR_WIDTH - full - (partial ? 1 : 0));
 }
 
 // Dot-separated thousands, e.g. 1.234.567.
